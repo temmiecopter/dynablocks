@@ -1,0 +1,535 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DynaBlocks Beta - Editor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Comic+Sans+MS&display=swap" rel="stylesheet">
+    <style>
+        html, body {
+            font-family: Arial, sans-serif;
+            background-color: #FFFFFF; /* Fallback for outside the app container */
+            color: #000000;
+            margin: 0;
+            padding: 0;
+            font-size: 14px;
+            display: flex;
+            flex-direction: column; /* Changed to column to stack app-container and footer */
+            min-height: 100vh; /* Ensure body takes full viewport height */
+            cursor: url('/cursor.png'), default !important; /* Changed: Added !important and applied to html as well for broader override */
+            overflow: hidden; /* Added: Prevent scrollbars if content exactly fits */
+        }
+
+        #app-container { /* This wraps all UI and editor content */
+            flex-grow: 1; /* Allow container to grow and fill available space */
+            display: grid; /* Use grid for overall layout of UI elements */
+            grid-template-rows: auto 1fr auto; /* Top bar, main content, bottom bar */
+            min-height: 100%; /* Ensure it fills parent body height */
+            box-sizing: border-box; /* Include padding and border in the element's total width and height */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Windows XP font feel */
+            font-size: 12px;
+        }
+
+        /* --- UI Component Base Styles --- */
+        .ui-panel {
+            background-color: #E0E0E0; /* Standard light gray for panels */
+            border-style: solid;
+            border-width: 1px;
+            border-color: #FFFFFF #808080 #808080 #FFFFFF; /* Raised border */
+            box-sizing: border-box;
+        }
+
+        .ui-button {
+            background-color: #D4D4D4; /* Button gray */
+            border-style: solid;
+            border-width: 1px;
+            border-color: #FFFFFF #808080 #808080 #FFFFFF; /* Raised border */
+            padding: 4px 8px;
+            cursor: url('/cursor.png'), default; /* Changed: Use custom cursor, fallback to default */
+            text-align: center;
+            white-space: nowrap;
+            box-sizing: border-sizing;
+            user-select: none; /* Prevent text selection */
+            font-size: 12px;
+        }
+
+        .ui-button:active {
+            border-color: #808080 #FFFFFF #FFFFFF #808080; /* Pressed border */
+            padding: 5px 7px 3px 9px; /* Simulate push effect */
+        }
+
+        .ui-image-button { /* For buttons that are mostly an image */
+            background-color: #D4D4D4;
+            border-style: solid;
+            border-width: 1px;
+            border-color: #FFFFFF #808080 #808080 #FFFFFF;
+            cursor: url('/cursor.png'), default; /* Changed: Use custom cursor, fallback to default */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-sizing: border-box;
+            padding: 0; /* No internal padding for image buttons */
+        }
+
+        .ui-image-button:active {
+            border-color: #808080 #FFFFFF #FFFFFF #808080;
+        }
+
+        .ui-image-button img {
+            display: block;
+            image-rendering: pixelated; /* Ensure pixel art remains sharp */
+            /* Default image size for icon buttons can be managed by parent or specific rules */
+        }
+
+        /* --- Top Bar --- */
+        #top-bar { /* The whole top section with title, menu, and window title */
+            padding: 5px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            border-bottom: none; /* No border for the top bar itself, the main-content-area will provide separation */
+            border-color: transparent; /* Override ui-panel border if necessary */
+        }
+
+        .window-title-bar {
+            background-color: #000080; /* Windows XP blue title bar */
+            color: #FFFFFF;
+            font-weight: bold;
+            padding: 3px 5px;
+            text-align: left;
+            font-size: 13px;
+            box-shadow: inset 1px 1px 0 #0000FF, inset -1px -1px 0 #000040; /* Simple gradient/shine */
+        }
+
+        #game-title {
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            line-height: 1; /* Tighter line height for the title */
+            margin-bottom: 5px;
+        }
+
+        #game-title h1 {
+            font-size: 32px; /* Smaller than original header h1 */
+            margin: 0;
+            display: inline-block; /* Ensure span sizing works */
+        }
+
+        h1 span {
+            display: inline-block;
+            animation: none; /* No animation for a static screenshot */
+        }
+
+        h1 .l1 { color: #FF69B4; } /* Pink */
+        h1 .l2 { color: #FF0000; } /* Red */
+        h1 .l3 { color: #FFA500; } /* Orange */
+        h1 .l4 { color: #FFFF00; } /* Yellow */
+        h1 .l5 { color: #008000; } /* Green */
+        h1 .l6 { color: #0000FF; } /* Blue */
+        h1 .l7 { color: #800080; } /* Purple */
+
+        .beta-text {
+            font-size: 16px; /* Adjusted size */
+            color: #FF69B4;
+            font-weight: normal;
+            vertical-align: middle; /* Align vertically with the main text */
+            margin-left: 2px;
+        }
+
+        .menu-bar {
+            background-color: #C0C0C0; /* Darker gray for menu bar */
+            padding: 2px 5px;
+            display: flex;
+            gap: 15px;
+            font-size: 13px;
+            border-style: solid;
+            border-width: 1px;
+            border-color: #808080 #FFFFFF #FFFFFF #808080; /* Sunken effect */
+            box-shadow: inset 1px 1px 0 #B0B0B0, inset -1px -1px 0 #F0F0F0; /* Simulate recessed look */
+        }
+
+        .menu-bar span {
+            cursor: url('/cursor.png'), default; /* Changed: Use custom cursor, fallback to default */
+            padding: 2px 5px;
+        }
+
+        .menu-bar span:hover {
+            background-color: #000080; /* Blue hover for menu items */
+            color: #FFFFFF;
+        }
+
+        /* --- Main Content Area (Editor + Sidebars) --- */
+        #main-content-area {
+            display: grid;
+            grid-template-columns: auto 1fr auto; /* Left, Editor, Right */
+            flex-grow: 1; /* Fills remaining vertical space */
+            background-color: #F0F0F0; /* Lighter background for the main content zone */
+            border-width: 0 1px; /* Only left and right border from its parent */
+            border-color: #808080;
+            border-style: solid;
+        }
+
+        #left-sidebar {
+            width: 140px; /* Fixed width */
+            padding: 10px 5px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px; /* Space between elements */
+            overflow-y: auto; /* In case content exceeds height */
+            border-right: 1px solid #808080; /* Right border for separation */
+            border-left: none; border-top: none; border-bottom: none; /* Override ui-panel borders */
+        }
+
+        .go-button, .large-button { /* Apply common sizing to both */
+            width: 100px;
+            height: 100px; /* Scaled further in height */
+        }
+        .go-button img, .large-button img {
+            width: 100%;
+            height: 100%;
+            object-fit: fill; /* Ensure the image fills the button dimensions */
+        }
+        .go-button:active {
+            border-color: #107210 #006400 #006400 #107210;
+        }
+        .large-button:active { /* Specific active style for the new button if needed */
+             border-color: #808080 #FFFFFF #FFFFFF #808080;
+        }
+
+        .zoom-controls, .camera-arrows {
+            display: flex;
+            flex-wrap: wrap; /* Allow wrapping for grid-like arrangement */
+            justify-content: center;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .camera-arrows {
+            grid-template-columns: repeat(3, 1fr);
+            display: grid; /* Use grid for 3x3 layout of arrows + empty space */
+            width: 100px; /* Control width of the grid */
+            height: 100px;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+
+        .camera-arrows .arrow-placeholder {
+            width: 30px; /* Placeholder to align arrows */
+            height: 30px;
+        }
+
+        .camera-arrows .ui-image-button {
+            width: 30px;
+            height: 30px;
+        }
+
+        .camera-arrows .ui-image-button img {
+            width: 20px;
+            height: 20px;
+        }
+
+        .zoom-button {
+            width: 40px;
+            height: 40px;
+        }
+
+        .zoom-button img {
+            width: 25px;
+            height: 25px;
+        }
+
+        #menu-button {
+            width: 100px;
+            height: 30px;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: auto; /* Push to bottom of sidebar */
+        }
+
+        #editor-frame {
+            border: none; /* No border for the frame itself, surrounding panels create the border effect */
+            background-color: #E0E0E0; /* A light grey background for the editor */
+            margin: 0; /* Changed: Removed auto margins */
+            display: flex; /* Use flexbox to center canvas if needed */
+            justify-content: center;
+            align-items: center;
+            flex-grow: 1; /* Added: Make editor frame fill available vertical space */
+            width: 100%; /* Ensure it takes full column width */
+            height: 100%;
+        }
+
+        #editor-canvas {
+            display: block; /* Remove extra space below canvas */
+            width: 100%;
+            height: 100%;
+        }
+
+        #right-panel {
+            width: 160px; /* Fixed width, increased to make text fit better */
+            padding: 10px 5px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            overflow-y: auto;
+            border-left: 1px solid #808080; /* Left border for separation */
+            border-right: none; border-top: none; border-bottom: none; /* Override ui-panel borders */
+        }
+
+        .info-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 15px;
+            background-color: #C0C0C0; /* Sunken panel for info display */
+            border-style: inset; /* Simulates inset border */
+            border-width: 1px;
+            border-color: #808080 #FFFFFF #FFFFFF #808080;
+            padding: 8px 5px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .pixel-text {
+            font-family: 'Press Start 2P', cursive; /* Use pixel font */
+            color: #00FF00; /* Bright green */
+            font-size: 12px; /* Adjusted size to ensure text fits within container */
+            line-height: 1; /* Tighter line height for pixel font */
+            white-space: nowrap; /* Prevent wrapping */
+            text-align: center; /* Center the text within its container */
+            width: 100%; /* Ensure it takes available width within info-display */
+            /* Added: Black outline for pixel text */
+            text-shadow:
+                -1px -1px 0 #000,
+                1px -1px 0 #000,
+                -1px 1px 0 #000,
+                1px 1px 0 #000,
+                0 -1px 0 #000,
+                0 1px 0 #000,
+                -1px 0 0 #000,
+                1px 0 0 #000;
+        }
+
+        .wasd-overlay, .cross-camera-menu {
+            margin-top: 10px;
+            max-width: 120px; /* Limit size */
+            height: auto;
+            display: block; /* Ensure it behaves like a block element */
+        }
+
+        /* NEW: Chat Button */
+        .chat-button {
+            width: 60px; /* Adjust size as needed */
+            height: 60px;
+            margin-top: 10px; /* Some spacing */
+        }
+        .chat-button img {
+            width: 40px; /* Adjust image size within button */
+            height: 40px;
+        }
+        .chat-button.active {
+            border-color: #00FF00 #008000 #008000 #00FF00; /* Green highlight for active */
+        }
+        .chat-button.active:active { /* Keep pressed state green */
+            border-color: #008000 #00FF00 #00FF00 #008000;
+        }
+
+        /* --- Bottom Toolbar --- */
+        #bottom-toolbar {
+            padding: 8px 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            border-top: 1px solid #808080; /* Top border for separation */
+            border-bottom: none; border-left: none; border-right: none; /* Override ui-panel borders */
+        }
+
+        .block-icon-button {
+            width: 40px;
+            height: 40px;
+        }
+
+        .block-icon-button img {
+            width: 30px;
+            height: 30px;
+        }
+
+        .models-button {
+            display: none; /* Hidden */
+        }
+
+        .models-button img {
+            width: 25px;
+            height: 25px;
+        }
+
+        /* NEW: Hide cylinder button */
+        .cylinder-button {
+            display: none;
+        }
+
+        /* NEW: Hide wedge button */
+        .block-icon-button[data-block-type="wedge"] {
+            display: none;
+        }
+
+        /* Hide the original screenshot boxes and footer that are no longer part of the UI */
+        .screenshot-box, footer {
+            display: none;
+        }
+
+        /* NEW: Chat Frame */
+        #chat-frame {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 70%; /* Percentage of app-container */
+            max-width: 600px; /* Max width for readability */
+            height: 60%;
+            max-height: 400px; /* Max height */
+            background-color: rgba(128, 128, 128, 0.8); /* Grey, transparent */
+            font-family: 'Comic Sans MS', cursive; /* Comic Sans */
+            color: #FFFFFF; /* White text for readability on grey */
+            padding: 10px;
+            box-sizing: border-box;
+            display: none; /* Hidden by default */
+            flex-direction: column; /* Stack header, log, input, send button */
+            gap: 10px;
+            z-index: 1000; /* Ensure it's on top of other elements */
+            /* Inherit ui-panel border style */
+            border-style: solid;
+            border-width: 1px;
+            border-color: #FFFFFF #808080 #808080 #FFFFFF;
+        }
+
+        .chat-header {
+            font-size: 1.2em;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+
+        .chat-log {
+            flex-grow: 1; /* Occupy remaining space */
+            background-color: rgba(0, 0, 0, 0.5); /* Darker background for log */
+            border-style: inset;
+            border-width: 1px;
+            border-color: #808080 #FFFFFF #FFFFFF #808080;
+            padding: 5px;
+            overflow-y: auto; /* Scroll for long chat history */
+            word-wrap: break-word; /* Wrap long words */
+            white-space: pre-wrap; /* Preserve whitespace and wrap */
+            font-family: 'Comic Sans MS', cursive; /* Comic Sans for log */
+            font-size: 14px;
+        }
+
+        #chat-input {
+            width: 100%;
+            padding: 5px;
+            box-sizing: border-box;
+            background-color: #E0E0E0; /* Light grey like other UI elements */
+            border-style: inset;
+            border-width: 1px;
+            border-color: #808080 #FFFFFF #FFFFFF #808080;
+            font-family: 'Comic Sans MS', cursive;
+            font-size: 14px;
+            resize: none; /* Disable manual resizing of textarea */
+            color: #000000;
+        }
+        #chat-input:focus {
+            outline: none; /* Remove default focus outline */
+            border-color: #000080 #0000FF #0000FF #000080; /* Blue focus border */
+        }
+
+        .send-button {
+            width: 100px; /* Fixed width for send button */
+            align-self: flex-end; /* Align to the right */
+            margin-top: 5px;
+            font-size: 14px;
+        }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "tween": "https://unpkg.com/@tweenjs/tween.js@23.1.1/dist/tween.esm.js"
+            }
+        }
+    </script>
+</head>
+<body>
+    <div id="app-container">
+        <div id="top-bar" class="ui-panel">
+            <div class="window-title-bar">Game "Untitled"</div>
+            <div id="game-title">
+                <h1>
+                    <span class="l1">D</span><span class="l2">y</span><span class="l3">n</span><span class="l4">a</span><span class="l5">B</span><span class="l6">l</span><span class="l7">o</span><span class="l1">c</span><span class="l2">k</span><span class="l3">s</span><span class="beta-text">Beta</span>
+                </h1>
+            </div>
+            <div class="menu-bar">
+                <span>Edit</span><span>View</span><span>Insert</span><span>Format</span>
+            </div>
+        </div>
+
+        <div id="main-content-area">
+            <div id="left-sidebar" class="ui-panel">
+                <button class="ui-image-button go-button"><img src="/go_button.png" alt="GO"></button>
+                <div class="zoom-controls">
+                    <button class="ui-image-button zoom-button" id="zoom-in-button"><img src="/zoom_in.png" alt="Zoom In"></button>
+                    <button class="ui-image-button zoom-button" id="zoom-out-button"><img src="/zoom_out.png" alt="Zoom Out"></button>
+                </div>
+                <div class="camera-arrows">
+                    <button class="ui-image-button arrow-button" id="rotate-left-button"><img src="/rotate_left.png" alt="Rotate Left"></button>
+                    <button class="ui-image-button arrow-button" id="arrow-up-button"><img src="/arrow_up.png" alt="Up"></button>
+                    <button class="ui-image-button arrow-button" id="rotate-right-button"><img src="/rotate_right.png" alt="Rotate Right"></button>
+                    <button class="ui-image-button arrow-button" id="arrow-left-button"><img src="/arrow_left.png" alt="Left"></button>
+                    <div class="arrow-placeholder"></div> <!-- Placeholder for center -->
+                    <button class="ui-image-button arrow-button" id="arrow-right-button"><img src="/arrow_right.png" alt="Right"></button>
+                    <div class="arrow-placeholder"></div>
+                    <button class="ui-image-button arrow-button" id="arrow-down-button"><img src="/arrow_down.png" alt="Down"></button>
+                    <div class="arrow-placeholder"></div>
+                </div>
+                <button class="ui-image-button large-button" id="clicker-button"><img src="/Clicker.png" alt="Clicker"></button>
+                <button class="ui-button" id="menu-button">MENU</button>
+            </div>
+            <div id="editor-frame">
+                <canvas id="editor-canvas"></canvas>
+            </div>
+            <div id="right-panel" class="ui-panel">
+                <div class="info-display">
+                    <div id="timer-display" class="pixel-text">Timer: 60.0</div>
+                    <div id="score-display" class="pixel-text">Score: 5000</div>
+                </div>
+                <img class="wasd-overlay" src="/wasd_overlay.png" alt="WASD Controls">
+                <img class="cross-camera-menu" src="/cross_camera_menu.png" alt="Camera Menu">
+                <button class="ui-image-button chat-button" id="chat-button">
+                    <img src="/chatbubble.png" alt="Chat">
+                </button>
+            </div>
+        </div>
+
+        <div id="bottom-toolbar" class="ui-panel">
+            <button class="ui-image-button block-icon-button" data-block-type="cube" style="display: none;"><img src="/cube_icon.png" alt="Cube"></button>
+            <button class="ui-image-button block-icon-button" data-block-type="sphere" style="display: none;"><img src="/sphere_icon.png" alt="Sphere"></button>
+            <button class="ui-image-button block-icon-button" data-block-type="wedge" style="display: none;"><img src="/wedge_icon.png" alt="Wedge"></button>
+            <button class="ui-image-button block-icon-button cylinder-button" data-block-type="cylinder" style="display: none;"><img src="/cylinder_icon.png" alt="Cylinder"></button>
+            <button class="ui-button models-button" style="display: none;"><img src="/gear_icon.png" alt="Gear">Models</button>
+        </div>
+    </div>
+    <div id="chat-frame" class="ui-panel">
+        <div class="chat-header">Chat</div>
+        <div class="chat-log" id="chat-log"></div>
+        <textarea id="chat-input" placeholder="Type message here..." rows="1"></textarea>
+        <button class="ui-button send-button" id="chat-send-button">Send</button>
+    </div>
+    <footer>
+        <a href="#">Contact</a> | <a href="#">Terms of Service</a> | <a href="#">Privacy Policy</a><br>
+        &copy; 2003 DynaBlocks Inc. All rights reserved.
+    </footer>
+    <script type="module" src="editor.js"></script>
+</body>
+</html>
